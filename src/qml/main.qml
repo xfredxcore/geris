@@ -1,0 +1,309 @@
+import QtQuick
+import QtQuick.Controls
+import Qt.labs.platform 1.1
+
+Window {
+    id: root
+    width: 750
+    height: 750
+    visible: true
+    title: "geris"
+    color: "transparent"
+    flags: Qt.FramelessWindowHint | Qt.Window
+
+    FileDialog {
+        id: saveDialog
+        title: "Сохранить файл как..."
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Текстовые файлы (*.txt)"]
+        onAccepted: {
+            fileIO.write(saveDialog.file.toString(), spiralCanvas.rawText)
+        }
+    }
+
+    Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        onTriggered: spiralCanvas.requestPaint()
+    }
+
+    Item {
+        anchors.centerIn: parent
+        width: 600
+        height: 600
+
+        Rectangle {
+            id: topEar
+            width: 140
+            height: 45
+            radius: 10
+            color: "#2d2d2d"
+            border.color: "#555555"
+            border.width: 1
+            anchors.bottom: mainCircle.top
+            anchors.bottomMargin: -10
+            anchors.horizontalCenter: parent.horizontalCenter
+            z: 2
+
+            Text {
+                anchors.centerIn: parent
+                text: "geris"
+                color: "#ffffff"
+                font.bold: true
+                font.pointSize: 13
+                font.letterSpacing: 1
+            }
+
+            DragHandler {
+                target: null
+                onActiveChanged: { if (active) root.startSystemMove() }
+            }
+        }
+
+        Rectangle {
+            width: 44
+            height: 44
+            radius: 22
+            color: "#2d2d2d"
+            border.color: "#555555"
+            border.width: 1
+            x: -15
+            y: 80
+            z: 2
+
+            Rectangle {
+                width: 14
+                height: 14
+                radius: 7
+                color: "#ffbb00"
+                anchors.centerIn: parent
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: root.showMinimized()
+            }
+        }
+
+        Rectangle {
+            width: 44
+            height: 44
+            radius: 22
+            color: "#2d2d2d"
+            border.color: "#555555"
+            border.width: 1
+            x: 571
+            y: 80
+            z: 2
+
+            Rectangle {
+                width: 14
+                height: 14
+                radius: 7
+                color: "#ff5f56"
+                anchors.centerIn: parent
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: Qt.quit()
+            }
+        }
+
+        Rectangle {
+            id: saveButton
+            width: 110
+            height: 45
+            radius: 10
+            color: "#2d2d2d"
+            border.color: "#555555"
+            border.width: 1
+            anchors.top: mainCircle.bottom
+            anchors.topMargin: -10
+            anchors.horizontalCenter: parent.horizontalCenter
+            z: 2
+
+            Text {
+                anchors.centerIn: parent
+                text: "SAVE AS"
+                color: "#ffffff"
+                font.bold: true
+                font.pointSize: 10
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: saveDialog.open()
+            }
+        }
+
+        Rectangle {
+            id: mainCircle
+            anchors.fill: parent
+            radius: width / 2
+            color: "#1a1a1a"
+            border.color: "#444444"
+            border.width: 1
+            z: 1
+
+            Canvas {
+                id: spiralCanvas
+                anchors.fill: parent
+                focus: true
+                
+                property real scrollOffset: 0.0
+                property string rawText: ""
+                property int cursorPosition: 0
+                property bool showCursor: true
+                property real currentCursorRadius: 0.0
+
+                onRawTextChanged: requestPaint()
+                onScrollOffsetChanged: requestPaint()
+                onCursorPositionChanged: requestPaint()
+
+                Timer {
+                    interval: 500
+                    running: true
+                    repeat: true
+                    onTriggered: {
+                        spiralCanvas.showCursor = !spiralCanvas.showCursor
+                        spiralCanvas.requestPaint()
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onWheel: (wheel) => {
+                        var newOffset = spiralCanvas.scrollOffset + wheel.angleDelta.y * 0.05
+                        if (newOffset > 100) newOffset = 100
+                        spiralCanvas.scrollOffset = newOffset
+                    }
+                    onClicked: { spiralCanvas.focus = true }
+                }
+
+                Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_BackSpace || event.text === "\u0008") {
+                        if (spiralCanvas.cursorPosition > 0) {
+                            var t = spiralCanvas.rawText
+                            spiralCanvas.rawText = t.substring(0, spiralCanvas.cursorPosition - 1) + t.substring(spiralCanvas.cursorPosition)
+                            spiralCanvas.cursorPosition--
+                        }
+                        event.accepted = true
+                        return
+                    }
+                    
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                        var cText = spiralCanvas.rawText
+                        spiralCanvas.rawText = cText.substring(0, spiralCanvas.cursorPosition) + "\n" + cText.substring(spiralCanvas.cursorPosition)
+                        spiralCanvas.cursorPosition++
+                        event.accepted = true
+                        return
+                    }
+                    
+                    if (event.key === Qt.Key_Left) {
+                        if (spiralCanvas.cursorPosition > 0) spiralCanvas.cursorPosition--
+                        event.accepted = true
+                        return
+                    }
+                    
+                    if (event.key === Qt.Key_Right) {
+                        if (spiralCanvas.cursorPosition < spiralCanvas.rawText.length) spiralCanvas.cursorPosition++
+                        event.accepted = true
+                        return
+                    }
+                    
+                    if (event.text.length > 0 && event.key !== Qt.Key_Tab && event.key !== Qt.Key_Escape && event.text !== "\u0008") {
+                        var code = event.text.charCodeAt(0)
+                        if (code >= 32 || event.text === " ") {
+                            var textToInsert = event.text
+                            var currentText = spiralCanvas.rawText
+                            spiralCanvas.rawText = currentText.substring(0, spiralCanvas.cursorPosition) + textToInsert + currentText.substring(spiralCanvas.cursorPosition)
+                            spiralCanvas.cursorPosition += textToInsert.length
+                        }
+                        event.accepted = true
+
+                        if (spiralCanvas.currentCursorRadius > (mainCircle.width / 2) - 40) {
+                            spiralCanvas.scrollOffset -= 0.8
+                        }
+                    }
+                }
+
+                onPaint: {
+                    var ctx = getContext("2d");
+                    ctx.reset();
+                    ctx.clearRect(0, 0, width, height);
+                    
+                    var centerX = width / 2;
+                    var centerY = height / 2;
+                    
+                    // В ЦЕНТРЕ ОСТАЛИСЬ ТОЛЬКО ЧАСЫ
+                    var date = new Date();
+                    var timeStr = date.toLocaleTimeString(Qt.locale(), "hh:mm:ss");
+
+                    ctx.fillStyle = "#888888";
+                    ctx.font = "14px monospace";
+                    ctx.textAlign = "center";
+                    ctx.fillText(timeStr, centerX, centerY + 5);
+                    
+                    ctx.fillStyle = "#ffffff";
+                    ctx.font = "16px monospace";
+                    ctx.textAlign = "left";
+
+                    var startRadius = 45; 
+                    var spiralSpacing = 26; 
+                    var theta = spiralCanvas.scrollOffset; 
+
+                    var textToRender = spiralCanvas.rawText;
+                    
+                    for (var i = 0; i <= textToRender.length; i++) {
+                        var r = startRadius + (spiralSpacing * (theta / (2 * Math.PI)));
+                        
+                        if (i === spiralCanvas.cursorPosition) {
+                            spiralCanvas.currentCursorRadius = r;
+                        }
+
+                        if (r < 10) {
+                            theta += 0.3;
+                            continue;
+                        }
+                        if (r > (width / 2) - 20) {
+                            break; 
+                        }
+
+                        var x = centerX + r * Math.cos(theta);
+                        var y = centerY + r * Math.sin(theta);
+
+                        if (i === spiralCanvas.cursorPosition && spiralCanvas.showCursor) {
+                            ctx.save();
+                            ctx.translate(x, y);
+                            ctx.rotate(theta + Math.PI / 2);
+                            ctx.fillStyle = "#ff5f56"; 
+                            ctx.fillRect(0, -12, 2, 16);
+                            ctx.restore();
+                        }
+
+                        if (i >= textToRender.length) break;
+
+                        var letter = textToRender[i];
+
+                        if (letter === "\n") {
+                            theta += (2 * Math.PI) - (theta % (2 * Math.PI));
+                            continue;
+                        }
+
+                        ctx.save();
+                        ctx.translate(x, y);
+                        ctx.rotate(theta + Math.PI / 2);
+                        ctx.fillText(letter, 0, 0);
+                        ctx.restore();
+
+                        var letterWidth = ctx.measureText(letter).width;
+                        if (letterWidth <= 0) letterWidth = 8;
+                        theta += (letterWidth / r);
+                    }
+                }
+            }
+        }
+    }
+}

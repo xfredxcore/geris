@@ -1,0 +1,7 @@
+build/
+CMakeLists.txt.user
+*.autosave
+.qtc_clangd/
+.cmake/
+.DS_Store
+Thumbs.db
